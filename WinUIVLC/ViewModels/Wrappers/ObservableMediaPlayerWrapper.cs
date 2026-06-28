@@ -1,0 +1,291 @@
+﻿using System.Collections.ObjectModel;
+using System.Linq;
+
+using CommunityToolkit.Mvvm.ComponentModel;
+using Serilog;
+using WinUIVLC.Models.Enums;
+using DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue;
+using MediaPlayer = LibVLCSharp.Shared.MediaPlayer;
+
+namespace WinUIVLC.ViewModels.Wrappers;
+
+public class ObservableMediaPlayerWrapper : ObservableObject
+{
+    private readonly MediaPlayer _player;
+    private readonly DispatcherQueue _dispatcherQueue;
+    private readonly ILogger _log = Log.ForContext<ObservableMediaPlayerWrapper>();
+
+    private int previousVolume;
+
+    private const int rewindOffset10s = 10000;
+    private const int rewindOffset3s = 3000;
+    private const int rewindOffset60s = 60000;
+
+    private const int volumeStep = 5;
+
+    public ObservableMediaPlayerWrapper(MediaPlayer player, DispatcherQueue dispatcherQueue)
+    {
+        _player = player;
+        _dispatcherQueue = dispatcherQueue;
+        _player.TimeChanged += (sender, time) => _dispatcherQueue.TryEnqueue(() =>
+        {
+            OnPropertyChanged(nameof(TimeLong));
+            OnPropertyChanged(nameof(TimeString));
+        });
+
+        _player.VolumeChanged += (sender, volumeArgs) => _dispatcherQueue.TryEnqueue(() =>
+        {
+            OnPropertyChanged(nameof(Volume));
+        });
+
+        _player.Playing += (sender, args) => _dispatcherQueue.TryEnqueue(() =>
+        {
+            OnPropertyChanged(nameof(IsPlaying));
+            RefreshTracks();
+        });
+
+        // Elementary streams (audio/subtitle tracks) are discovered asynchronously
+        // as the media is parsed, so refresh the lists whenever they change.
+        _player.ESAdded += (sender, args) => _dispatcherQueue.TryEnqueue(RefreshTracks);
+        _player.ESDeleted += (sender, args) => _dispatcherQueue.TryEnqueue(RefreshTracks);
+
+        _player.Paused += (sender, args) => _dispatcherQueue.TryEnqueue(() =>
+        {
+            OnPropertyChanged(nameof(IsPlaying));
+        });
+
+        _player.Stopped += (sender, args) => _dispatcherQueue.TryEnqueue(() =>
+        {
+            OnPropertyChanged(nameof(IsPlaying));
+        });
+
+        _player.EndReached += (sender, args) => _dispatcherQueue.TryEnqueue(() =>
+        {
+            OnPropertyChanged(nameof(IsPlaying));
+        });
+
+        _player.LengthChanged += (sender, args) => _dispatcherQueue.TryEnqueue(() =>
+        {
+            OnPropertyChanged(nameof(TotalTimeLong));
+            OnPropertyChanged(nameof(TotalTimeString));
+        });
+
+        // Default to normal speed without issuing a redundant SetRate during construction.
+        _selectedSpeed = PlaybackSpeeds.First(s => s.Value == 1.0);
+    }
+
+    public long TimeLong
+    {
+        get => _player.Time;
+        set => SetProperty(_player.Time, value, _player, (u, n) => u.Time = n);
+    }
+
+    public string TimeString => TimeSpan.FromMilliseconds(TimeLong).ToString(@"hh\:mm\:ss");
+
+    public long TotalTimeLong => _player.Length;
+
+    public string TotalTimeString => TimeSpan.FromMilliseconds(TotalTimeLong).ToString(@"hh\:mm\:ss");
+
+    public int Volume
+    {
+        get => _player.Volume;
+        set => SetProperty(_player.Volume, value, _player, (u, n) => u.Volume = n);
+    }
+
+    public bool IsPlaying => _player.IsPlaying;
+
+    public ObservableCollection<TrackModel> AudioTracks
+    {
+        get;
+    } = new();
+
+    public ObservableCollection<TrackModel> SubtitleTracks
+    {
+        get;
+    } = new();
+
+    public bool HasAudioTracks => AudioTracks.Count > 0;
+
+    public bool HasSubtitleTracks => SubtitleTracks.Count > 0;
+
+    public ObservableCollection<SpeedModel> PlaybackSpeeds
+    {
+        get;
+    } = new()
+    {
+        new SpeedModel { Value = 0.5, Label = "0.5×" },
+        new SpeedModel { Value = 0.75, Label = "0.75×" },
+        new SpeedModel { Value = 1.0, Label = "Normal" },
+        new SpeedModel { Value = 1.25, Label = "1.25×" },
+        new SpeedModel { Value = 1.5, Label = "1.5×" },
+        new SpeedModel { Value = 1.75, Label = "1.75×" },
+        new SpeedModel { Value = 2.0, Label = "2×" },
+    };
+
+    private SpeedModel? _selectedSpeed;
+    public SpeedModel? SelectedSpeed
+    {
+        get => _selectedSpeed;
+        set
+        {
+            if (SetProperty(ref _selectedSpeed, value) && value != null)
+            {
+                _player.SetRate((float)value.Value);
+                _log.Information("Playback speed set to {0}x", value.Value);
+            }
+        }
+    }
+
+    private bool _suppressTrackSelection;
+
+    private TrackModel? _selectedAudioTrack;
+    public TrackModel? SelectedAudioTrack
+    {
+        get => _selectedAudioTrack;
+        set
+        {
+            if (SetProperty(ref _selectedAudioTrack, value) && value != null && !_suppressTrackSelection)
+            {
+                _player.SetAudioTrack(value.Id);
+                _log.Information("Audio track set to '{0}' (id {1})", value.Name, value.Id);
+            }
+        }
+    }
+
+    private TrackModel? _selectedSubtitleTrack;
+    public TrackModel? SelectedSubtitleTrack
+    {
+        get => _selectedSubtitleTrack;
+        set
+        {
+            if (SetProperty(ref _selectedSubtitleTrack, value) && value != null && !_suppressTrackSelection)
+            {
+                _player.SetSpu(value.Id);
+                _log.Information("Subtitle track set to '{0}' (id {1})", value.Name, value.Id);
+            }
+        }
+    }
+
+    private void RefreshTracks()
+    {
+        if (_player.Media == null)
+        {
+            return;
+        }
+
+        _suppressTrackSelection = true;
+
+        AudioTracks.Clear();
+        foreach (var track in _player.AudioTrackDescription)
+        {
+            AudioTracks.Add(new TrackModel { Id = track.Id, Name = track.Name });
+        }
+
+        SubtitleTracks.Clear();
+        foreach (var track in _player.SpuDescription)
+        {
+            SubtitleTracks.Add(new TrackModel { Id = track.Id, Name = track.Name });
+        }
+
+        _selectedAudioTrack = AudioTracks.FirstOrDefault(t => t.Id == _player.AudioTrack);
+        OnPropertyChanged(nameof(SelectedAudioTrack));
+
+        _selectedSubtitleTrack = SubtitleTracks.FirstOrDefault(t => t.Id == _player.Spu);
+        OnPropertyChanged(nameof(SelectedSubtitleTrack));
+
+        _suppressTrackSelection = false;
+
+        OnPropertyChanged(nameof(HasAudioTracks));
+        OnPropertyChanged(nameof(HasSubtitleTracks));
+    }
+
+    /// <summary>
+    /// Loads an external subtitle file (e.g. .srt) and selects it.
+    /// </summary>
+    public void AddSubtitle(string uri)
+    {
+        var added = _player.AddSlave(LibVLCSharp.Shared.MediaSlaveType.Subtitle, uri, true);
+        _log.Information("AddSubtitle '{0}' -> {1}", uri, added);
+    }
+
+    public void VolumeUp()
+    {
+        if (Volume <= 200)
+        {
+            _log.Information("VolumeUp, old value {0}, new value {1}", Volume, Volume + volumeStep);
+            Volume += volumeStep;
+        }
+    }
+
+    public void VolumeDown()
+    {
+        if (Volume >= volumeStep)
+        {
+            _log.Information("VolumeDown, old value {0}, new value {1}", Volume, Volume - volumeStep);
+            Volume -= volumeStep;
+        }
+    }
+
+    public void Mute()
+    {
+        if (Volume == 0)
+        {
+            Volume = previousVolume;
+            _log.Information("Unmute, old value {0}, new value {1}", 0, Volume);
+        }
+        else
+        {
+            previousVolume = Volume;
+            Volume = 0;
+            _log.Information("Mute, old value {0}, new value {1}", previousVolume, Volume);
+        }
+    }
+
+    public void PlayPause()
+    {
+        if (!IsPlaying)
+        {
+            _player.Play();
+            _log.Information("Play");
+        }
+        else
+        {
+            _player.Pause();
+            _log.Information("Pause");
+        }
+    }
+
+    public void Stop()
+    {
+        _player.Stop();
+        _log.Information("Stop");
+    }
+
+    public void FastForward(RewindMode mode)
+    {
+        var offset = mode switch
+        {
+            RewindMode.Normal => rewindOffset10s,
+            RewindMode.Short => rewindOffset3s,
+            RewindMode.Long => rewindOffset60s,
+            _ => rewindOffset10s,
+        };
+
+        TimeLong += offset;
+        _log.Information("FastForward, offset {0} ms", offset);
+    }
+
+    public void Rewind(RewindMode mode)
+    {
+        var offset = mode switch
+        {
+            RewindMode.Normal => rewindOffset10s,
+            RewindMode.Short => rewindOffset3s,
+            RewindMode.Long => rewindOffset60s,
+            _ => rewindOffset10s,
+        };
+
+        TimeLong -= offset;
+        _log.Information("Rewind, offset {0} ms", offset);
+    }
+}

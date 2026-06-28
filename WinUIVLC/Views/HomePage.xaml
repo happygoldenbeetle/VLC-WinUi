@@ -1,0 +1,38 @@
+<Page x:Class="WinUIVLC.Views.HomePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:local="using:WinUIVLC.Views"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d">
+
+    <Grid x:Name="ContentArea"
+          Margin="{StaticResource NavigationViewPageContentMargin}"
+          AllowDrop="True"
+          Background="Transparent"
+          DragOver="OnDragOver"
+          Drop="OnDrop">
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="16">
+            <FontIcon HorizontalAlignment="Center"
+                      FontSize="64"
+                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                      Glyph="&#xE8B2;" />
+            <TextBlock HorizontalAlignment="Center"
+                       Style="{ThemeResource SubtitleTextBlockStyle}"
+                       Text="No media loaded" />
+            <TextBlock HorizontalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="Open an .mp4 or .mkv file to start watching." />
+            <Button HorizontalAlignment="Center"
+                    Command="{x:Bind ViewModel.OpenFileCommand}"
+                    Style="{ThemeResource AccentButtonStyle}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon FontSize="16" Glyph="&#xE8E5;" />
+                    <TextBlock Text="Open File" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Page>
