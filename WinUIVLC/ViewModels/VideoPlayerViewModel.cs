@@ -29,10 +29,11 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
     private string filePath = "Empty";
     private ObservableMediaPlayerWrapper mediaPlayerWrapper;
     private Visibility controlsVisibility;
+    private bool isPointerOverControls;
 
     private readonly DispatcherTimer controlsHideTimer = new()
     {
-        Interval = TimeSpan.FromSeconds(1),
+        Interval = TimeSpan.FromSeconds(3),
     };
 
     public VideoPlayerViewModel(INavigationService navigationService, IWindowPresenterService windowPresenterService, ILogger log)
@@ -42,6 +43,7 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
         _log = log;
 
         _windowPresenterService.WindowPresenterChanged += OnWindowPresenterChanged;
+        controlsHideTimer.Tick += Timer_Tick;
 
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     }
@@ -83,7 +85,8 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
         set => SetProperty(ref controlsVisibility, value);
     }
 
-    public int RowSpan => _windowPresenterService.IsFullScreen ? 2 : 1;
+    // Always span both rows so the control bar overlays the video; hiding it then never reflows the picture.
+    public int RowSpan => 2;
 
     public bool LoadPlayer => FilePath != "Empty";
 
@@ -144,29 +147,51 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
         _log.Information("Starting playback of '{0}'", FilePath);
 
         MediaPlayerWrapper = new ObservableMediaPlayerWrapper(Player, _dispatcherQueue);
+        RestartHideTimer();
     }
 
     [RelayCommand]
     private void PointerMoved(PointerRoutedEventArgs? args)
     {
-        if (_windowPresenterService.IsFullScreen)
+        // Any movement over the video reveals the controls and resets the idle countdown.
+        ShowControls();
+        RestartHideTimer();
+    }
+
+    [RelayCommand]
+    private void ControlsPointerEntered()
+    {
+        // While the pointer is on the control bar, keep it shown and pause the countdown.
+        isPointerOverControls = true;
+        controlsHideTimer.Stop();
+        ShowControls();
+    }
+
+    [RelayCommand]
+    private void ControlsPointerExited()
+    {
+        isPointerOverControls = false;
+        RestartHideTimer();
+    }
+
+    private void RestartHideTimer()
+    {
+        controlsHideTimer.Stop();
+        if (!isPointerOverControls)
         {
-            if (ControlsVisibility == Visibility.Collapsed)
-            {
-                ShowControls();
-            }
-            else
-            {
-                controlsHideTimer.Stop();
-                controlsHideTimer.Start();
-            }
+            controlsHideTimer.Start();
         }
     }
 
     private void Timer_Tick(object? sender, object e)
     {
-        HideControls();
         controlsHideTimer.Stop();
+
+        // Keep the controls up while the pointer is on them or while playback is paused.
+        if (!isPointerOverControls && (MediaPlayerWrapper?.IsPlaying ?? false))
+        {
+            HideControls();
+        }
     }
 
     private void OnWindowPresenterChanged(object? sender, EventArgs e)
@@ -176,16 +201,9 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
             return;
         }
 
-        if (windowPresenter.IsFullScreen)
-        {
-            controlsHideTimer.Tick += Timer_Tick;
-        }
-        else
-        {
-            controlsHideTimer.Stop();
-            controlsHideTimer.Tick -= Timer_Tick;
-            ShowControls();
-        }
+        // Reveal the controls when toggling fullscreen, then resume the idle countdown.
+        ShowControls();
+        RestartHideTimer();
 
         OnPropertyChanged(nameof(IsNotFullScreen));
         OnPropertyChanged(nameof(ControlsVisibility));
@@ -194,12 +212,22 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
 
     private void ShowControls()
     {
+        if (ControlsVisibility == Visibility.Visible)
+        {
+            return;
+        }
+
         ControlsVisibility = Visibility.Visible;
         _log.Information("Showing controls");
     }
 
     private void HideControls()
     {
+        if (ControlsVisibility == Visibility.Collapsed)
+        {
+            return;
+        }
+
         ControlsVisibility = Visibility.Collapsed;
         _log.Information("Hiding controls");
     }

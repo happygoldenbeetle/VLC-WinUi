@@ -34,6 +34,9 @@
             <interactions:EventTriggerBehavior EventName="PointerWheelChanged">
                 <interactions:InvokeCommandAction Command="{x:Bind ViewModel.ScrollChangedCommand}" />
             </interactions:EventTriggerBehavior>
+            <interactions:EventTriggerBehavior EventName="PointerMoved">
+                <interactions:InvokeCommandAction Command="{x:Bind ViewModel.PointerMovedCommand}" />
+            </interactions:EventTriggerBehavior>
         </interactivity:Interaction.Behaviors>
 
         <!--  Escape exits fullscreen. Hosted on the always-visible root so it still fires when the control bar is auto-hidden.  -->
@@ -87,9 +90,6 @@
             <interactivity:Interaction.Behaviors>
                 <interactions:EventTriggerBehavior EventName="Initialized">
                     <interactions:InvokeCommandAction Command="{x:Bind ViewModel.InitializedCommand}" />
-                </interactions:EventTriggerBehavior>
-                <interactions:EventTriggerBehavior EventName="PointerMoved">
-                    <interactions:InvokeCommandAction Command="{x:Bind ViewModel.PointerMovedCommand}" />
                 </interactions:EventTriggerBehavior>
                 <interactions:EventTriggerBehavior EventName="DoubleTapped">
                     <interactions:InvokeCommandAction Command="{x:Bind ViewModel.FullScreenCommand}" />
@@ -151,10 +151,20 @@
         </lvs:VideoView>
 
         <Grid x:Name="Controls"
+              Canvas.ZIndex="2"
               Grid.Row="1"
               VerticalAlignment="Center"
               Background="{ThemeResource ControlsBackground}"
               Visibility="{x:Bind ViewModel.ControlsVisibility, Mode=OneWay}">
+
+            <interactivity:Interaction.Behaviors>
+                <interactions:EventTriggerBehavior EventName="PointerEntered">
+                    <interactions:InvokeCommandAction Command="{x:Bind ViewModel.ControlsPointerEnteredCommand}" />
+                </interactions:EventTriggerBehavior>
+                <interactions:EventTriggerBehavior EventName="PointerExited">
+                    <interactions:InvokeCommandAction Command="{x:Bind ViewModel.ControlsPointerExitedCommand}" />
+                </interactions:EventTriggerBehavior>
+            </interactivity:Interaction.Behaviors>
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
