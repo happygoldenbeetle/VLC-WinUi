@@ -46,6 +46,73 @@
                 </StackPanel>
             </StackPanel>
 
+            <TextBlock Margin="{StaticResource SmallTopBottomMargin}"
+                       Style="{ThemeResource SubtitleTextBlockStyle}"
+                       Text="Playback" />
+            <StackPanel Margin="{StaticResource XSmallTopMargin}" Spacing="12">
+                <ToggleSwitch Header="Resume from where you left off" IsOn="{x:Bind ViewModel.ResumePlayback, Mode=TwoWay}" />
+                <Slider Width="360"
+                        HorizontalAlignment="Left"
+                        Header="Default volume"
+                        Maximum="100"
+                        Minimum="0"
+                        Value="{x:Bind ViewModel.DefaultVolume, Mode=TwoWay}" />
+                <Slider Width="360"
+                        HorizontalAlignment="Left"
+                        Header="Default playback speed"
+                        Maximum="2"
+                        Minimum="0.5"
+                        SnapsTo="StepValues"
+                        StepFrequency="0.25"
+                        Value="{x:Bind ViewModel.DefaultPlaybackSpeed, Mode=TwoWay}" />
+                <Slider Width="360"
+                        HorizontalAlignment="Left"
+                        Header="Hide controls after (seconds idle)"
+                        Maximum="10"
+                        Minimum="1"
+                        Value="{x:Bind ViewModel.AutoHideDelaySeconds, Mode=TwoWay}" />
+                <Slider Width="360"
+                        HorizontalAlignment="Left"
+                        Header="Short skip (seconds)"
+                        Maximum="30"
+                        Minimum="1"
+                        Value="{x:Bind ViewModel.SeekShortSeconds, Mode=TwoWay}" />
+                <Slider Width="360"
+                        HorizontalAlignment="Left"
+                        Header="Normal skip (seconds)"
+                        Maximum="60"
+                        Minimum="5"
+                        Value="{x:Bind ViewModel.SeekNormalSeconds, Mode=TwoWay}" />
+                <Slider Width="360"
+                        HorizontalAlignment="Left"
+                        Header="Long skip (seconds)"
+                        Maximum="300"
+                        Minimum="30"
+                        Value="{x:Bind ViewModel.SeekLongSeconds, Mode=TwoWay}" />
+            </StackPanel>
+
+            <TextBlock Margin="{StaticResource SmallTopBottomMargin}"
+                       Style="{ThemeResource SubtitleTextBlockStyle}"
+                       Text="Subtitles &amp; audio" />
+            <StackPanel Margin="{StaticResource XSmallTopMargin}" Spacing="12">
+                <ToggleSwitch Header="Show subtitles by default" IsOn="{x:Bind ViewModel.SubtitlesEnabledByDefault, Mode=TwoWay}" />
+                <ComboBox Width="280"
+                          Header="Preferred subtitle language"
+                          ItemsSource="{x:Bind ViewModel.Languages}"
+                          SelectedItem="{x:Bind ViewModel.PreferredSubtitleLanguage, Mode=TwoWay}" />
+                <Slider Width="360"
+                        HorizontalAlignment="Left"
+                        Header="Subtitle font scale (%)"
+                        Maximum="300"
+                        Minimum="50"
+                        StepFrequency="10"
+                        Value="{x:Bind ViewModel.SubtitleFontScale, Mode=TwoWay}" />
+                <ComboBox Width="280"
+                          Header="Preferred audio language"
+                          ItemsSource="{x:Bind ViewModel.Languages}"
+                          SelectedItem="{x:Bind ViewModel.PreferredAudioLanguage, Mode=TwoWay}" />
+            </StackPanel>
+
             <TextBlock x:Uid="Settings_About" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
             <StackPanel Margin="{StaticResource XSmallTopMargin}">

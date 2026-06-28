@@ -22,6 +22,7 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly INavigationService _navigationService;
     private readonly IWindowPresenterService _windowPresenterService;
+    private readonly IPlayerSettingsService _playerSettings;
     private readonly ILogger _log;
 
     private LibVLC libVLC;
@@ -36,14 +37,16 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
         Interval = TimeSpan.FromSeconds(3),
     };
 
-    public VideoPlayerViewModel(INavigationService navigationService, IWindowPresenterService windowPresenterService, ILogger log)
+    public VideoPlayerViewModel(INavigationService navigationService, IWindowPresenterService windowPresenterService, IPlayerSettingsService playerSettings, ILogger log)
     {
         _navigationService = navigationService;
         _windowPresenterService = windowPresenterService;
+        _playerSettings = playerSettings;
         _log = log;
 
         _windowPresenterService.WindowPresenterChanged += OnWindowPresenterChanged;
         controlsHideTimer.Tick += Timer_Tick;
+        controlsHideTimer.Interval = TimeSpan.FromSeconds(Math.Max(1, _playerSettings.AutoHideDelaySeconds));
 
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     }
@@ -139,15 +142,79 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
 
         _log.Information("Initializing LibVLC");
 
-        LibVLC = new LibVLC(true, eventArgs.SwapChainOptions);
+        // Subtitle font scale must be a libVLC creation option (no runtime API in this version).
+        var libVlcOptions = eventArgs.SwapChainOptions.ToList();
+        if (_playerSettings.SubtitleFontScale != 100)
+        {
+            libVlcOptions.Add($"--sub-text-scale={_playerSettings.SubtitleFontScale}");
+        }
+
+        LibVLC = new LibVLC(true, libVlcOptions.ToArray());
         Player = new MediaPlayer(LibVLC);
 
         var media = new Media(LibVLC, new Uri(FilePath));
+
+        // Resume from the saved position if enabled and the offset is meaningful.
+        if (_playerSettings.ResumePlayback)
+        {
+            var resumeMs = _playerSettings.GetResumePosition(FilePath);
+            if (resumeMs > 5000)
+            {
+                media.AddOption($":start-time={resumeMs / 1000.0}");
+                _log.Information("Resuming '{0}' at {1} ms", FilePath, resumeMs);
+            }
+        }
+
         Player.Play(media);
         _log.Information("Starting playback of '{0}'", FilePath);
 
-        MediaPlayerWrapper = new ObservableMediaPlayerWrapper(Player, _dispatcherQueue);
+        Player.EndReached += OnEndReached;
+
+        var startupOptions = new PlayerStartupOptions
+        {
+            Volume = _playerSettings.DefaultVolume,
+            Speed = _playerSettings.DefaultPlaybackSpeed,
+            SeekShortMs = _playerSettings.SeekShortSeconds * 1000,
+            SeekNormalMs = _playerSettings.SeekNormalSeconds * 1000,
+            SeekLongMs = _playerSettings.SeekLongSeconds * 1000,
+            EnableSubtitles = _playerSettings.SubtitlesEnabledByDefault,
+            PreferredSubtitleLanguage = _playerSettings.PreferredSubtitleLanguage,
+            PreferredAudioLanguage = _playerSettings.PreferredAudioLanguage,
+        };
+
+        MediaPlayerWrapper = new ObservableMediaPlayerWrapper(Player, _dispatcherQueue, startupOptions);
         RestartHideTimer();
+    }
+
+    private void OnEndReached(object? sender, EventArgs e)
+    {
+        // Playback finished - drop the saved resume point so it restarts from the beginning next time.
+        _ = _playerSettings.ClearResumePositionAsync(FilePath);
+    }
+
+    private void SaveResumeState()
+    {
+        var player = Player;
+        if (player == null || FilePath == "Empty")
+        {
+            return;
+        }
+
+        var time = player.Time;
+        var length = player.Length;
+
+        // Remember the position only when we are past the intro and not effectively at the end.
+        if (time > 5000 && (length <= 0 || time < length - 5000))
+        {
+            _ = _playerSettings.SaveResumePositionAsync(FilePath, time);
+        }
+        else
+        {
+            _ = _playerSettings.ClearResumePositionAsync(FilePath);
+        }
+
+        // Persist the last volume so the next file opens at the same level.
+        _ = _playerSettings.SetDefaultVolumeAsync(player.Volume);
     }
 
     [RelayCommand]
@@ -399,18 +466,18 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
 
     public void OnNavigatedFrom()
     {
-        //Player.Playing -= Player_Playing;
-        //Player.TimeChanged -= Player_TimeChanged;
-        //Player.Media.DurationChanged -= Media_DurationChanged;
-        //Player.MediaChanged -= Player_MediaChanged;
-        //Player.Paused -= Player_Paused;
-        //Player.Stopped -= Player_Stopped;
-        //Player.VolumeChanged -= Player_VolumeChanged;
+        // Remember where we left off (and the volume) before the player goes away.
+        SaveResumeState();
     }
 
     public void Dispose()
     {
         var mediaPlayer = Player;
+        if (mediaPlayer != null)
+        {
+            mediaPlayer.EndReached -= OnEndReached;
+        }
+
         Player = null;
         mediaPlayer?.Dispose();
         LibVLC?.Dispose();

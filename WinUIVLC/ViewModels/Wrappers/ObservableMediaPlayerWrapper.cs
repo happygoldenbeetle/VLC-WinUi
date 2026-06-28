@@ -17,16 +17,27 @@ public class ObservableMediaPlayerWrapper : ObservableObject
 
     private int previousVolume;
 
-    private const int rewindOffset10s = 10000;
-    private const int rewindOffset3s = 3000;
-    private const int rewindOffset60s = 60000;
+    private readonly PlayerStartupOptions _options;
+    private readonly int rewindOffsetNormal;
+    private readonly int rewindOffsetShort;
+    private readonly int rewindOffsetLong;
+
+    private bool _startupVolumeApplied;
+    private bool _audioPreferenceApplied;
+    private bool _subtitlePreferenceApplied;
 
     private const int volumeStep = 5;
 
-    public ObservableMediaPlayerWrapper(MediaPlayer player, DispatcherQueue dispatcherQueue)
+    public ObservableMediaPlayerWrapper(MediaPlayer player, DispatcherQueue dispatcherQueue, PlayerStartupOptions options)
     {
         _player = player;
         _dispatcherQueue = dispatcherQueue;
+        _options = options;
+
+        rewindOffsetNormal = options.SeekNormalMs;
+        rewindOffsetShort = options.SeekShortMs;
+        rewindOffsetLong = options.SeekLongMs;
+
         _player.TimeChanged += (sender, time) => _dispatcherQueue.TryEnqueue(() =>
         {
             OnPropertyChanged(nameof(TimeLong));
@@ -41,6 +52,14 @@ public class ObservableMediaPlayerWrapper : ObservableObject
         _player.Playing += (sender, args) => _dispatcherQueue.TryEnqueue(() =>
         {
             OnPropertyChanged(nameof(IsPlaying));
+
+            // Volume only sticks once the audio output is up, so apply the default on first play.
+            if (!_startupVolumeApplied)
+            {
+                _startupVolumeApplied = true;
+                _player.Volume = _options.Volume;
+            }
+
             RefreshTracks();
         });
 
@@ -70,8 +89,13 @@ public class ObservableMediaPlayerWrapper : ObservableObject
             OnPropertyChanged(nameof(TotalTimeString));
         });
 
-        // Default to normal speed without issuing a redundant SetRate during construction.
-        _selectedSpeed = PlaybackSpeeds.First(s => s.Value == 1.0);
+        // Apply the configured default speed (the backing field avoids a redundant change notification).
+        _selectedSpeed = PlaybackSpeeds.FirstOrDefault(s => s.Value == options.Speed)
+                         ?? PlaybackSpeeds.First(s => s.Value == 1.0);
+        if (_selectedSpeed.Value != 1.0)
+        {
+            _player.SetRate((float)_selectedSpeed.Value);
+        }
     }
 
     public long TimeLong
@@ -197,6 +221,52 @@ public class ObservableMediaPlayerWrapper : ObservableObject
 
         OnPropertyChanged(nameof(HasAudioTracks));
         OnPropertyChanged(nameof(HasSubtitleTracks));
+
+        ApplyTrackPreferences();
+    }
+
+    /// <summary>
+    /// Auto-selects the preferred audio/subtitle tracks once they become available.
+    /// </summary>
+    private void ApplyTrackPreferences()
+    {
+        if (!_audioPreferenceApplied && AudioTracks.Count > 0 && !string.IsNullOrEmpty(_options.PreferredAudioLanguage))
+        {
+            var match = AudioTracks.FirstOrDefault(t => t.Name.Contains(_options.PreferredAudioLanguage, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                SelectedAudioTrack = match;
+            }
+
+            _audioPreferenceApplied = true;
+        }
+
+        if (!_subtitlePreferenceApplied && SubtitleTracks.Count > 0)
+        {
+            if (_options.EnableSubtitles)
+            {
+                var target = !string.IsNullOrEmpty(_options.PreferredSubtitleLanguage)
+                    ? SubtitleTracks.FirstOrDefault(t => t.Name.Contains(_options.PreferredSubtitleLanguage, StringComparison.OrdinalIgnoreCase))
+                    : null;
+                target ??= SubtitleTracks.FirstOrDefault(t => t.Id != -1);
+
+                if (target != null)
+                {
+                    SelectedSubtitleTrack = target;
+                }
+            }
+            else
+            {
+                // Make sure a forced/default embedded subtitle stays off when the user opts out.
+                var disable = SubtitleTracks.FirstOrDefault(t => t.Id == -1);
+                if (disable != null)
+                {
+                    SelectedSubtitleTrack = disable;
+                }
+            }
+
+            _subtitlePreferenceApplied = true;
+        }
     }
 
     /// <summary>
@@ -265,10 +335,10 @@ public class ObservableMediaPlayerWrapper : ObservableObject
     {
         var offset = mode switch
         {
-            RewindMode.Normal => rewindOffset10s,
-            RewindMode.Short => rewindOffset3s,
-            RewindMode.Long => rewindOffset60s,
-            _ => rewindOffset10s,
+            RewindMode.Normal => rewindOffsetNormal,
+            RewindMode.Short => rewindOffsetShort,
+            RewindMode.Long => rewindOffsetLong,
+            _ => rewindOffsetNormal,
         };
 
         TimeLong += offset;
@@ -279,10 +349,10 @@ public class ObservableMediaPlayerWrapper : ObservableObject
     {
         var offset = mode switch
         {
-            RewindMode.Normal => rewindOffset10s,
-            RewindMode.Short => rewindOffset3s,
-            RewindMode.Long => rewindOffset60s,
-            _ => rewindOffset10s,
+            RewindMode.Normal => rewindOffsetNormal,
+            RewindMode.Short => rewindOffsetShort,
+            RewindMode.Long => rewindOffsetLong,
+            _ => rewindOffsetNormal,
         };
 
         TimeLong -= offset;
