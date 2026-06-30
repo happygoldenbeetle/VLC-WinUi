@@ -1,9 +1,12 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace WinUIVLC.ViewModels;
 
 /// <summary>
 /// A folder the user has added to the library allow-list (backed by the FutureAccessList).
+/// <see cref="IsSelected"/> controls whether its videos are shown in the grid.
 /// </summary>
-public class FolderEntry
+public partial class FolderEntry : ObservableObject
 {
     public string Token
     {
@@ -19,4 +22,7 @@ public class FolderEntry
     {
         get; init;
     } = string.Empty;
+
+    [ObservableProperty]
+    private bool _isSelected = true;
 }

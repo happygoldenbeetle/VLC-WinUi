@@ -514,21 +514,39 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
 
     public void OnNavigatedFrom()
     {
-        // Remember where we left off (and the volume) before the player goes away.
+        // Remember where we left off, then tear down so this video stops when we leave the page.
         SaveResumeState();
+        TearDownPlayer();
     }
 
     public void Dispose()
     {
+        TearDownPlayer();
+    }
+
+    private void TearDownPlayer()
+    {
         var mediaPlayer = Player;
+        var libVlc = LibVLC;
+
         if (mediaPlayer != null)
         {
             mediaPlayer.EndReached -= OnEndReached;
         }
 
         Player = null;
-        mediaPlayer?.Dispose();
-        LibVLC?.Dispose();
         LibVLC = null;
+
+        if (mediaPlayer != null || libVlc != null)
+        {
+            // Dispose off the UI thread: libVLC stop/dispose can block, and we must not leave audio running.
+            Task.Run(() =>
+            {
+                mediaPlayer?.Dispose();
+                libVlc?.Dispose();
+            });
+        }
+
+        GC.SuppressFinalize(this);
     }
 }

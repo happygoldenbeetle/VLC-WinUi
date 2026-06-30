@@ -21,6 +21,12 @@ public partial class LibraryItem : ObservableObject
         get; init;
     } = string.Empty;
 
+    // Path of the allow-listed folder this video came from (used for filtering).
+    public string FolderPath
+    {
+        get; init;
+    } = string.Empty;
+
     [ObservableProperty]
     private ImageSource? _thumbnail;
 

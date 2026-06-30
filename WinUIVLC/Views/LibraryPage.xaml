@@ -27,27 +27,31 @@
             <AppBarButton Icon="Refresh"
                           Command="{x:Bind ViewModel.RefreshCommand}"
                           Label="Refresh" />
-            <AppBarButton Icon="Folder" Label="Folders">
+            <AppBarButton Icon="Filter" Label="Filter">
                 <AppBarButton.Flyout>
                     <Flyout>
-                        <StackPanel MinWidth="320" Spacing="8">
-                            <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Library folders" />
+                        <StackPanel MinWidth="340" Spacing="8">
+                            <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Show videos from" />
                             <ItemsControl ItemsSource="{x:Bind ViewModel.Folders, Mode=OneWay}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:FolderEntry">
-                                        <Grid Margin="0,2" ColumnSpacing="8">
+                                        <Grid Margin="0,2" ColumnSpacing="4">
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind Name}" />
+                                            <CheckBox MinWidth="0"
+                                                      VerticalAlignment="Center"
+                                                      IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock FontSize="11"
                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                            Text="{x:Bind Path}"
                                                            TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
-                                            <Button Grid.Column="1"
+                                            <Button Grid.Column="2"
                                                     Click="OnRemoveFolder"
                                                     ToolTipService.ToolTip="Remove folder">
                                                 <FontIcon FontSize="14" Glyph="&#xE74D;" />

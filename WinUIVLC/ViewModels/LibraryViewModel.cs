@@ -31,6 +31,8 @@ public partial class LibraryViewModel : ObservableRecipient, INavigationAware
     private readonly INavigationService _navigationService;
     private readonly ILogger _log;
 
+    private readonly List<LibraryItem> _allItems = new();
+
     public ObservableCollection<LibraryItem> Items
     {
         get;
@@ -133,25 +135,54 @@ public partial class LibraryViewModel : ObservableRecipient, INavigationAware
 
     private void LoadFolders()
     {
+        foreach (var existing in Folders)
+        {
+            existing.PropertyChanged -= OnFolderSelectionChanged;
+        }
+
         Folders.Clear();
         foreach (var entry in StorageApplicationPermissions.FutureAccessList.Entries)
         {
             var path = entry.Metadata;
-            Folders.Add(new FolderEntry
+            var folder = new FolderEntry
             {
                 Token = entry.Token,
                 Path = path,
                 Name = System.IO.Path.GetFileName(path.TrimEnd('\\', '/')),
-            });
+            };
+            folder.PropertyChanged += OnFolderSelectionChanged;
+            Folders.Add(folder);
         }
 
         ShowFolderPrompt = Folders.Count == 0;
         ShowNoVideos = false;
     }
 
+    private void OnFolderSelectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FolderEntry.IsSelected))
+        {
+            ApplyItemFilter();
+        }
+    }
+
+    private void ApplyItemFilter()
+    {
+        var selected = Folders.Where(f => f.IsSelected).Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Items.Clear();
+        foreach (var item in _allItems.Where(i => selected.Contains(i.FolderPath)))
+        {
+            Items.Add(item);
+        }
+
+        ShowNoVideos = Folders.Count > 0 && Items.Count == 0;
+    }
+
     private async Task LoadAsync()
     {
         IsLoading = true;
+        _allItems.Clear();
         Items.Clear();
 
         try
@@ -178,11 +209,13 @@ public partial class LibraryViewModel : ObservableRecipient, INavigationAware
                 var files = await query.GetFilesAsync();
                 foreach (var file in files)
                 {
-                    var item = new LibraryItem { File = file, Name = file.Name };
-                    Items.Add(item);
+                    var item = new LibraryItem { File = file, Name = file.Name, FolderPath = entry.Path };
+                    _allItems.Add(item);
                     _ = LoadDetailsAsync(item);
                 }
             }
+
+            ApplyItemFilter();
         }
         catch (Exception ex)
         {
