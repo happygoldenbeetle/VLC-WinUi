@@ -24,9 +24,45 @@
             <AppBarButton Command="{x:Bind ViewModel.AddFolderCommand}"
                           Icon="NewFolder"
                           Label="Add folder" />
-            <AppBarButton Command="{x:Bind ViewModel.RefreshCommand}"
-                          Icon="Refresh"
+            <AppBarButton Icon="Refresh"
+                          Command="{x:Bind ViewModel.RefreshCommand}"
                           Label="Refresh" />
+            <AppBarButton Icon="Folder" Label="Folders">
+                <AppBarButton.Flyout>
+                    <Flyout>
+                        <StackPanel MinWidth="320" Spacing="8">
+                            <TextBlock Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Library folders" />
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Folders, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:FolderEntry">
+                                        <Grid Margin="0,2" ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind Name}" />
+                                                <TextBlock FontSize="11"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                           Text="{x:Bind Path}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Click="OnRemoveFolder"
+                                                    ToolTipService.ToolTip="Remove folder">
+                                                <FontIcon FontSize="14" Glyph="&#xE74D;" />
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button HorizontalAlignment="Stretch"
+                                    Command="{x:Bind ViewModel.AddFolderCommand}"
+                                    Content="Add folder…" />
+                        </StackPanel>
+                    </Flyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
         </CommandBar>
 
         <Grid Grid.Row="1">
@@ -36,19 +72,34 @@
 
             <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Spacing="8"
-                        Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        Spacing="10"
+                        Visibility="{x:Bind ViewModel.ShowFolderPrompt, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                 <FontIcon HorizontalAlignment="Center"
                           FontSize="48"
                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                          Glyph="&#xE8B2;" />
+                          Glyph="&#xE8B7;" />
+                <TextBlock HorizontalAlignment="Center"
+                           Style="{ThemeResource SubtitleTextBlockStyle}"
+                           Text="No folders yet" />
                 <TextBlock HorizontalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="No videos found in your Videos library." />
+                           TextAlignment="Center"
+                           Text="Add a folder to build your video library." />
                 <Button HorizontalAlignment="Center"
                         Command="{x:Bind ViewModel.AddFolderCommand}"
-                        Content="Add a folder" />
+                        Style="{ThemeResource AccentButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="16" Glyph="&#xE8F4;" />
+                        <TextBlock Text="Select folder" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
+
+            <TextBlock HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="No videos found in your folders."
+                       Visibility="{x:Bind ViewModel.ShowNoVideos, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
             <GridView ItemClick="OnItemClick"
                       IsItemClickEnabled="True"

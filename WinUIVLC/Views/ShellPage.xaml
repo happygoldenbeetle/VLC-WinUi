@@ -141,6 +141,11 @@
                         <FontIcon Glyph="&#xE8B2;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem helpers:NavigationHelper.NavigateTo="WinUIVLC.ViewModels.NetworkViewModel" Content="Network stream">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE774;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <NavigationView.AutoSuggestBox>

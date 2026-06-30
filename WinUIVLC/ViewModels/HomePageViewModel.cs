@@ -71,15 +71,6 @@ public partial class HomePageViewModel : ObservableRecipient
         _navigationService.NavigateTo(typeof(VideoPlayerViewModel).FullName!, new List<IStorageItem> { file });
     }
 
-    /// <summary>
-    /// Opens a network stream (http/https/rtsp/...) in the player.
-    /// </summary>
-    public void OpenUrl(string url)
-    {
-        _log.Information("Opening network stream '{0}'", url);
-        _navigationService.NavigateTo(typeof(VideoPlayerViewModel).FullName!, url);
-    }
-
     // libVLC plays far more than mp4/mkv; allow the common containers plus partial-download files.
     public static readonly string[] VideoFileExtensions =
     {

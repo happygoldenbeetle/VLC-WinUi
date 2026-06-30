@@ -88,6 +88,8 @@ public partial class App : Application
             services.AddTransient<VideoPlayerPage>();
             services.AddTransient<LibraryViewModel>();
             services.AddTransient<LibraryPage>();
+            services.AddTransient<NetworkViewModel>();
+            services.AddTransient<NetworkPage>();
             services.AddTransient<ShellPage>();
             services.AddTransient<ShellViewModel>();
             services.AddTransient<HomePageViewModel>();

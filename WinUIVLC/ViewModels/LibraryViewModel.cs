@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,7 +11,9 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Serilog;
 
 using Windows.Storage;
+using Windows.Storage.AccessCache;
 using Windows.Storage.FileProperties;
+using Windows.Storage.Pickers;
 using Windows.Storage.Search;
 
 using WinUIVLC.Contracts.Services;
@@ -33,11 +36,21 @@ public partial class LibraryViewModel : ObservableRecipient, INavigationAware
         get;
     } = new();
 
+    public ObservableCollection<FolderEntry> Folders
+    {
+        get;
+    } = new();
+
     [ObservableProperty]
     private bool _isLoading;
 
+    // No folders added yet - prompt the user to pick one.
     [ObservableProperty]
-    private bool _isEmpty;
+    private bool _showFolderPrompt;
+
+    // Folders exist but contain no playable videos.
+    [ObservableProperty]
+    private bool _showNoVideos;
 
     public LibraryViewModel(INavigationService navigationService, ILogger log)
     {
@@ -47,7 +60,9 @@ public partial class LibraryViewModel : ObservableRecipient, INavigationAware
 
     public async void OnNavigatedTo(object parameter)
     {
-        if (Items.Count == 0)
+        LoadFolders();
+
+        if (Folders.Count > 0 && Items.Count == 0)
         {
             await LoadAsync();
         }
@@ -67,25 +82,71 @@ public partial class LibraryViewModel : ObservableRecipient, INavigationAware
         _navigationService.NavigateTo(typeof(VideoPlayerViewModel).FullName!, new List<IStorageItem> { item.File });
     }
 
-    [RelayCommand]
-    private async Task Refresh() => await LoadAsync();
+    public void RemoveFolder(FolderEntry? entry)
+    {
+        if (entry == null)
+        {
+            return;
+        }
+
+        if (StorageApplicationPermissions.FutureAccessList.ContainsItem(entry.Token))
+        {
+            StorageApplicationPermissions.FutureAccessList.Remove(entry.Token);
+        }
+
+        LoadFolders();
+        _ = LoadAsync();
+    }
 
     [RelayCommand]
     private async Task AddFolder()
     {
-        try
+        var picker = new FolderPicker
         {
-            var library = await StorageLibrary.GetLibraryAsync(KnownLibraryId.Videos);
-            var folder = await library.RequestAddFolderAsync();
-            if (folder != null)
+            SuggestedStartLocation = PickerLocationId.VideosLibrary,
+        };
+        picker.FileTypeFilter.Add("*");
+
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder == null)
+        {
+            return;
+        }
+
+        var fal = StorageApplicationPermissions.FutureAccessList;
+        var alreadyAdded = fal.Entries.Any(e => string.Equals(e.Metadata, folder.Path, StringComparison.OrdinalIgnoreCase));
+        if (!alreadyAdded)
+        {
+            fal.Add(folder, folder.Path);
+            _log.Information("Added library folder '{0}'", folder.Path);
+        }
+
+        LoadFolders();
+        await LoadAsync();
+    }
+
+    [RelayCommand]
+    private async Task Refresh() => await LoadAsync();
+
+    private void LoadFolders()
+    {
+        Folders.Clear();
+        foreach (var entry in StorageApplicationPermissions.FutureAccessList.Entries)
+        {
+            var path = entry.Metadata;
+            Folders.Add(new FolderEntry
             {
-                await LoadAsync();
-            }
+                Token = entry.Token,
+                Path = path,
+                Name = System.IO.Path.GetFileName(path.TrimEnd('\\', '/')),
+            });
         }
-        catch (Exception ex)
-        {
-            _log.Error(ex, "Failed to add folder to the Videos library");
-        }
+
+        ShowFolderPrompt = Folders.Count == 0;
+        ShowNoVideos = false;
     }
 
     private async Task LoadAsync()
@@ -99,23 +160,38 @@ public partial class LibraryViewModel : ObservableRecipient, INavigationAware
             {
                 FolderDepth = FolderDepth.Deep,
             };
-            var query = KnownFolders.VideosLibrary.CreateFileQueryWithOptions(options);
-            var files = await query.GetFilesAsync();
 
-            foreach (var file in files)
+            foreach (var entry in Folders.ToList())
             {
-                var item = new LibraryItem { File = file, Name = file.Name };
-                Items.Add(item);
-                _ = LoadDetailsAsync(item);
+                StorageFolder folder;
+                try
+                {
+                    folder = await StorageApplicationPermissions.FutureAccessList.GetFolderAsync(entry.Token);
+                }
+                catch (Exception ex)
+                {
+                    _log.Warning(ex, "Could not open library folder '{0}'", entry.Path);
+                    continue;
+                }
+
+                var query = folder.CreateFileQueryWithOptions(options);
+                var files = await query.GetFilesAsync();
+                foreach (var file in files)
+                {
+                    var item = new LibraryItem { File = file, Name = file.Name };
+                    Items.Add(item);
+                    _ = LoadDetailsAsync(item);
+                }
             }
         }
         catch (Exception ex)
         {
-            _log.Error(ex, "Failed to enumerate the Videos library");
+            _log.Error(ex, "Failed to load the library");
         }
         finally
         {
-            IsEmpty = Items.Count == 0;
+            ShowFolderPrompt = Folders.Count == 0;
+            ShowNoVideos = Folders.Count > 0 && Items.Count == 0;
             IsLoading = false;
         }
     }
