@@ -136,7 +136,7 @@
                         <FontIcon Glyph="&#xE80F;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem helpers:NavigationHelper.NavigateTo="WinUIVLC.ViewModels.VideoPlayerViewModel" Content="Videos">
+                <NavigationViewItem helpers:NavigationHelper.NavigateTo="WinUIVLC.ViewModels.LibraryViewModel" Content="Videos">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8B2;" />
                     </NavigationViewItem.Icon>

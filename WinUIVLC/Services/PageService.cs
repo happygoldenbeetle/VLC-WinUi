@@ -17,6 +17,7 @@ public class PageService : IPageService
         Configure<VideoPlayerViewModel, VideoPlayerPage>();
         Configure<SettingsViewModel, SettingsPage>();
         Configure<HomePageViewModel, HomePage>();
+        Configure<LibraryViewModel, LibraryPage>();
     }
 
     public Type GetPageType(string key)

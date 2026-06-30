@@ -1,0 +1,80 @@
+<Page x:Class="WinUIVLC.Views.LibraryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:converters="using:CommunityToolkit.WinUI.Converters"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:vm="using:WinUIVLC.ViewModels"
+      mc:Ignorable="d">
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </Page.Resources>
+
+    <Grid Margin="{StaticResource NavigationViewPageContentMargin}" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <CommandBar Grid.Row="0"
+                    HorizontalAlignment="Left"
+                    Background="Transparent"
+                    DefaultLabelPosition="Right"
+                    IsOpen="False">
+            <AppBarButton Command="{x:Bind ViewModel.AddFolderCommand}"
+                          Icon="NewFolder"
+                          Label="Add folder" />
+            <AppBarButton Command="{x:Bind ViewModel.RefreshCommand}"
+                          Icon="Refresh"
+                          Label="Refresh" />
+        </CommandBar>
+
+        <Grid Grid.Row="1">
+            <ProgressRing HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8"
+                        Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <FontIcon HorizontalAlignment="Center"
+                          FontSize="48"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                          Glyph="&#xE8B2;" />
+                <TextBlock HorizontalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Text="No videos found in your Videos library." />
+                <Button HorizontalAlignment="Center"
+                        Command="{x:Bind ViewModel.AddFolderCommand}"
+                        Content="Add a folder" />
+            </StackPanel>
+
+            <GridView ItemClick="OnItemClick"
+                      IsItemClickEnabled="True"
+                      ItemsSource="{x:Bind ViewModel.Items}"
+                      SelectionMode="None">
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LibraryItem">
+                        <StackPanel Width="200" Margin="6">
+                            <Border Height="112"
+                                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                    CornerRadius="6">
+                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
+                            </Border>
+                            <TextBlock Margin="2,6,2,0"
+                                       MaxLines="2"
+                                       Text="{x:Bind Name}"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Margin="2,2,2,0"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       Text="{x:Bind Duration, Mode=OneWay}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+        </Grid>
+    </Grid>
+</Page>

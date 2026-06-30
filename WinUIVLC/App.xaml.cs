@@ -86,6 +86,8 @@ public partial class App : Application
             services.AddTransient<SettingsPage>();
             services.AddTransient<VideoPlayerViewModel>();
             services.AddTransient<VideoPlayerPage>();
+            services.AddTransient<LibraryViewModel>();
+            services.AddTransient<LibraryPage>();
             services.AddTransient<ShellPage>();
             services.AddTransient<ShellViewModel>();
             services.AddTransient<HomePageViewModel>();
