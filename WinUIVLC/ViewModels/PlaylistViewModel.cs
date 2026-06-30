@@ -88,7 +88,7 @@ public partial class PlaylistViewModel : ObservableRecipient, INavigationAware
             using var http = new HttpClient();
             http.DefaultRequestHeaders.Add("User-Agent", "VLC/3.0.18 LibVLC/3.0.18");
             var content = await http.GetStringAsync(url);
-            SetChannels(M3uParser.Parse(content));
+            ApplyPlaylistContent(content);
         }
         catch (Exception ex)
         {
@@ -125,7 +125,7 @@ public partial class PlaylistViewModel : ObservableRecipient, INavigationAware
         try
         {
             var content = await FileIO.ReadTextAsync(file);
-            SetChannels(M3uParser.Parse(content));
+            ApplyPlaylistContent(content);
         }
         catch (Exception ex)
         {
@@ -136,6 +136,24 @@ public partial class PlaylistViewModel : ObservableRecipient, INavigationAware
         {
             IsLoading = false;
         }
+    }
+
+    private void ApplyPlaylistContent(string content)
+    {
+        if (content.TrimStart().StartsWith("<", StringComparison.Ordinal))
+        {
+            Status = "That URL returned a web page, not a playlist. Use a direct .m3u link (e.g. https://iptv-org.github.io/iptv/index.m3u).";
+            return;
+        }
+
+        var channels = M3uParser.Parse(content);
+        if (channels.Count == 0)
+        {
+            Status = "No channels found. Make sure the link points to an M3U playlist.";
+            return;
+        }
+
+        SetChannels(channels);
     }
 
     private void SetChannels(List<PlaylistItem> channels)

@@ -9,6 +9,11 @@ namespace WinUIVLC.Helpers;
 /// </summary>
 public static class M3uParser
 {
+    private static readonly HashSet<string> MediaSchemes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "http", "https", "rtsp", "rtmp", "rtmps", "mms", "mmsh", "udp", "rtp", "ftp", "ftps", "smb", "hls", "file",
+    };
+
     public static List<PlaylistItem> Parse(string content)
     {
         var items = new List<PlaylistItem>();
@@ -39,8 +44,9 @@ public static class M3uParser
                 // Other directives (#EXTM3U, #EXTGRP, #EXTVLCOPT, ...) - ignored.
                 continue;
             }
-            else
+            else if (title != null || IsLikelyMediaUri(line))
             {
+                // A URL line: trusted if it followed an #EXTINF, otherwise it must look like a real media URL.
                 items.Add(new PlaylistItem
                 {
                     Title = string.IsNullOrEmpty(title) ? line : title!,
@@ -50,9 +56,16 @@ public static class M3uParser
                 title = null;
                 group = string.Empty;
             }
+
+            // Anything else (e.g. stray HTML when the URL wasn't actually a playlist) is ignored.
         }
 
         return items;
+    }
+
+    private static bool IsLikelyMediaUri(string line)
+    {
+        return Uri.TryCreate(line, UriKind.Absolute, out var uri) && MediaSchemes.Contains(uri.Scheme);
     }
 
     // The channel title is the text after the first comma that is not inside a quoted attribute value.
