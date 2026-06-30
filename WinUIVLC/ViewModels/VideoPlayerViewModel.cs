@@ -23,6 +23,7 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
     private readonly INavigationService _navigationService;
     private readonly IWindowPresenterService _windowPresenterService;
     private readonly IPlayerSettingsService _playerSettings;
+    private readonly IPlaylistService _playlistService;
     private readonly ILogger _log;
 
     private LibVLC libVLC;
@@ -37,11 +38,12 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
         Interval = TimeSpan.FromSeconds(3),
     };
 
-    public VideoPlayerViewModel(INavigationService navigationService, IWindowPresenterService windowPresenterService, IPlayerSettingsService playerSettings, ILogger log)
+    public VideoPlayerViewModel(INavigationService navigationService, IWindowPresenterService windowPresenterService, IPlayerSettingsService playerSettings, IPlaylistService playlistService, ILogger log)
     {
         _navigationService = navigationService;
         _windowPresenterService = windowPresenterService;
         _playerSettings = playerSettings;
+        _playlistService = playlistService;
         _log = log;
 
         _windowPresenterService.WindowPresenterChanged += OnWindowPresenterChanged;
@@ -190,6 +192,19 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
     {
         // Playback finished - drop the saved resume point so it restarts from the beginning next time.
         _ = _playerSettings.ClearResumePositionAsync(FilePath);
+
+        // Auto-advance to the next playlist item (no-op for single videos / live streams that don't end).
+        if (_playlistService.HasNext)
+        {
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                var item = _playlistService.MoveNext();
+                if (item != null)
+                {
+                    _navigationService.NavigateTo(typeof(VideoPlayerViewModel).FullName!, item.Uri);
+                }
+            });
+        }
     }
 
     private void SaveResumeState()
@@ -313,6 +328,30 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
     private void Stop()
     {
         MediaPlayerWrapper?.Stop();
+    }
+
+    public bool HasNext => _playlistService.HasNext;
+
+    public bool HasPrevious => _playlistService.HasPrevious;
+
+    [RelayCommand]
+    private void PlaylistNext()
+    {
+        var item = _playlistService.MoveNext();
+        if (item != null)
+        {
+            _navigationService.NavigateTo(typeof(VideoPlayerViewModel).FullName!, item.Uri);
+        }
+    }
+
+    [RelayCommand]
+    private void PlaylistPrevious()
+    {
+        var item = _playlistService.MovePrevious();
+        if (item != null)
+        {
+            _navigationService.NavigateTo(typeof(VideoPlayerViewModel).FullName!, item.Uri);
+        }
     }
 
     [RelayCommand]

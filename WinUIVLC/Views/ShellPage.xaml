@@ -146,6 +146,11 @@
                         <FontIcon Glyph="&#xE71B;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem helpers:NavigationHelper.NavigateTo="WinUIVLC.ViewModels.PlaylistViewModel" Content="Playlist">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81E;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <NavigationView.AutoSuggestBox>

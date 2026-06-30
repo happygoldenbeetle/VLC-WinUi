@@ -212,7 +212,9 @@
 
                     <AppBarSeparator />
 
-                    <AppBarButton IsEnabled="False" Label="Previous">
+                    <AppBarButton Command="{x:Bind ViewModel.PlaylistPreviousCommand}"
+                                  IsEnabled="{x:Bind ViewModel.HasPrevious}"
+                                  Label="Previous">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE892;" />
                         </AppBarButton.Icon>
@@ -306,7 +308,9 @@
                             </KeyboardAccelerator>
                         </AppBarButton.KeyboardAccelerators>
                     </AppBarButton>
-                    <AppBarButton IsEnabled="False" Label="Next">
+                    <AppBarButton Command="{x:Bind ViewModel.PlaylistNextCommand}"
+                                  IsEnabled="{x:Bind ViewModel.HasNext}"
+                                  Label="Next">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE893;" />
                         </AppBarButton.Icon>

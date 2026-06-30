@@ -76,6 +76,7 @@ public partial class App : Application
             services.AddSingleton<IPageService, PageService>();
             services.AddSingleton<INavigationService, NavigationService>();
             services.AddSingleton<IPlaybackService, PlaybackService>();
+            services.AddSingleton<IPlaylistService, PlaylistService>();
             services.AddSingleton<IWindowPresenterService, WindowPresenterService>();
 
             // Core Services
@@ -90,6 +91,8 @@ public partial class App : Application
             services.AddTransient<LibraryPage>();
             services.AddTransient<NetworkViewModel>();
             services.AddTransient<NetworkPage>();
+            services.AddTransient<PlaylistViewModel>();
+            services.AddTransient<PlaylistPage>();
             services.AddTransient<ShellPage>();
             services.AddTransient<ShellViewModel>();
             services.AddTransient<HomePageViewModel>();
