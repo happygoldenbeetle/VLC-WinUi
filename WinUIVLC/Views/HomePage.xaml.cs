@@ -53,4 +53,29 @@ public sealed partial class HomePage : Page
             ViewModel.OpenStorageItems(items);
         }
     }
+
+    private async void OnOpenUrlClick(object sender, RoutedEventArgs e)
+    {
+        var input = new TextBox
+        {
+            PlaceholderText = "http://…, https://…, rtsp://…",
+            AcceptsReturn = false,
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = "Open network stream",
+            Content = input,
+            PrimaryButtonText = "Open",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(input.Text))
+        {
+            ViewModel.OpenUrl(input.Text.Trim());
+        }
+    }
 }

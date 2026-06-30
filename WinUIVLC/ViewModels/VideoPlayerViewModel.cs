@@ -154,8 +154,8 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
 
         var media = new Media(LibVLC, new Uri(FilePath));
 
-        // Resume from the saved position if enabled and the offset is meaningful.
-        if (_playerSettings.ResumePlayback)
+        // Resume from the saved position if enabled and the offset is meaningful (local files only).
+        if (_playerSettings.ResumePlayback && IsLocalFile)
         {
             var resumeMs = _playerSettings.GetResumePosition(FilePath);
             if (resumeMs > 5000)
@@ -200,17 +200,21 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
             return;
         }
 
-        var time = player.Time;
-        var length = player.Length;
+        // Resume positions only make sense for local files, not live network streams.
+        if (IsLocalFile)
+        {
+            var time = player.Time;
+            var length = player.Length;
 
-        // Remember the position only when we are past the intro and not effectively at the end.
-        if (time > 5000 && (length <= 0 || time < length - 5000))
-        {
-            _ = _playerSettings.SaveResumePositionAsync(FilePath, time);
-        }
-        else
-        {
-            _ = _playerSettings.ClearResumePositionAsync(FilePath);
+            // Remember the position only when we are past the intro and not effectively at the end.
+            if (time > 5000 && (length <= 0 || time < length - 5000))
+            {
+                _ = _playerSettings.SaveResumePositionAsync(FilePath, time);
+            }
+            else
+            {
+                _ = _playerSettings.ClearResumePositionAsync(FilePath);
+            }
         }
 
         // Persist the last volume so the next file opens at the same level.
@@ -447,10 +451,15 @@ public partial class VideoPlayerViewModel : ObservableRecipient, INavigationAwar
     {
         if (parameter is IReadOnlyList<IStorageItem> fileList)
         {
-            var filePath = fileList.First().Path;
-            FilePath = filePath;
+            FilePath = fileList.First().Path;
+        }
+        else if (parameter is string url && !string.IsNullOrWhiteSpace(url))
+        {
+            FilePath = url;
         }
     }
+
+    private bool IsLocalFile => Uri.TryCreate(FilePath, UriKind.Absolute, out var uri) && uri.IsFile;
 
     /// <summary>
     /// Opens a dropped file by re-navigating the player to it.

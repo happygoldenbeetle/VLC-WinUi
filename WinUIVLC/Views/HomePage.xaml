@@ -24,15 +24,23 @@
                        Text="No media loaded" />
             <TextBlock HorizontalAlignment="Center"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="Open an .mp4 or .mkv file to start watching." />
-            <Button HorizontalAlignment="Center"
-                    Command="{x:Bind ViewModel.OpenFileCommand}"
-                    Style="{ThemeResource AccentButtonStyle}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon FontSize="16" Glyph="&#xE8E5;" />
-                    <TextBlock Text="Open File" />
-                </StackPanel>
-            </Button>
+                       Text="Open a video file, drag one in, or paste a stream URL." />
+            <StackPanel HorizontalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="12">
+                <Button Command="{x:Bind ViewModel.OpenFileCommand}" Style="{ThemeResource AccentButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="16" Glyph="&#xE8E5;" />
+                        <TextBlock Text="Open File" />
+                    </StackPanel>
+                </Button>
+                <Button Click="OnOpenUrlClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="16" Glyph="&#xE774;" />
+                        <TextBlock Text="Open network stream" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </StackPanel>
     </Grid>
 </Page>
