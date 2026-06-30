@@ -143,7 +143,7 @@
                 </NavigationViewItem>
                 <NavigationViewItem helpers:NavigationHelper.NavigateTo="WinUIVLC.ViewModels.NetworkViewModel" Content="Network stream">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE774;" />
+                        <FontIcon Glyph="&#xE71B;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>

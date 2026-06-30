@@ -13,7 +13,7 @@
             <FontIcon HorizontalAlignment="Center"
                       FontSize="64"
                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                      Glyph="&#xE774;" />
+                      Glyph="&#xE71B;" />
             <TextBlock HorizontalAlignment="Center"
                        Style="{ThemeResource SubtitleTextBlockStyle}"
                        Text="Open network stream" />
@@ -25,6 +25,11 @@
                      KeyDown="OnUrlKeyDown"
                      PlaceholderText="http://… , https://… , rtsp://…"
                      Text="{x:Bind ViewModel.Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <InfoBar IsClosable="False"
+                     IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+                     Message="Enter a valid stream URL starting with http://, https:// or rtsp://."
+                     Severity="Error"
+                     Title="Invalid URL" />
             <Button HorizontalAlignment="Center"
                     Command="{x:Bind ViewModel.OpenCommand}"
                     Style="{ThemeResource AccentButtonStyle}">
